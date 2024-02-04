@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<style>
+    #videoContainer {
+            position: relative;
+        }
+
+        #videoPlayer {
+            width: 100%;
+        }
+
+        #subtitles {
+            position: absolute;
+            bottom: 60px;
+            left: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0);
+            color: white;
+            padding: 10px;
+            box-sizing: border-box;
+            text-align: center;
+            font-size: 30px;
+            z-index: 1001; /* Adjust the z-index to a value higher than the video player's z-index */
+        }
+
+        #fileModal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        #videoContainer::cue {
+            display: block;
+        }
+
+        #videoContainer:-webkit-full-screen::cue {
+            display: block;
+        }
+</style>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player with Subtitles</title>
+</head>
+
+<body>
+    <video id="videoPlayer" controls>
+        <source src="video.mkv" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <div id="subtitles"></div>
+
+    <button onclick="openFileModal()">Add Subtitle File</button>
+    <div id="fileModal">
+        <input type="file" id="fileInput" />
+        <button onclick="closeFileModal()">Close</button>
+    </div>
+
+    <!-- Include Plyr from CDN -->
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.6.4/plyr.css" />
+    <script src="https://cdn.plyr.io/3.6.4/plyr.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const player = new Plyr('#videoPlayer');
+            // Optional: Add event listener for time update
+            player.on('timeupdate', displaySubtitles);
+        });
+
+        const fileInput = document.getElementById('fileInput');
+        const fileModal = document.getElementById('fileModal');
+        const video = document.getElementById('videoPlayer');
+        const subtitlesContainer = document.getElementById('subtitles');
+        let parsedSubtitles = [];
+        function openFileModal() {
+            fileModal.style.display = 'block';
+        }
+
+        function closeFileModal() {
+            fileModal.style.display = 'none';
+        }
+
+        fileInput.addEventListener('change', handleFile);
+
+        function handleFile(event) {
+            const file = event.target.files[0];
+
+            if (file) {
+                const reader = new FileReader();
+
+                reader.onload = function (e) {
+                    const fileContent = e.target.result;
+                    parsedSubtitles = parseVTT(fileContent);
+                    console.log(parsedSubtitles);
+                    closeFileModal();
+                };
+
+                reader.readAsText(file);
+            }
+        }
+
+        video.addEventListener('timeupdate', displaySubtitles);
+
+        function displaySubtitles() {
+            const currentTime = videoPlayer.currentTime;
+            const currentSubtitle = findCurrentSubtitle(parsedSubtitles, currentTime);
+            console.log('called display subtitles',currentSubtitle);
+            subtitlesContainer.innerText = currentSubtitle.text;
+        }
+
+        function parseVTT(vttData) {
+            const lines = vttData.split('\n').filter(line => line.trim() !== '');
+
+            let subtitles = [];
+            let currentSubtitle = { start: 0, end: 0, text: '' };
+
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes('-->')) {
+                    const [startTime, endTime] = lines[i].split(' --> ').map(parseTime);
+                    subtitles.push(currentSubtitle);
+                    currentSubtitle = { start: startTime, end: endTime, text: '' };
+                } else if (lines[i].trim() !== '') {
+                    currentSubtitle.text += lines[i] + ' ';
+                }
+            }
+            subtitles.push(currentSubtitle);
+            return subtitles;
+        }
+
+        function findCurrentSubtitle(subtitles, currentTime) {
+            for (const subtitle of subtitles) {
+                if (currentTime >= subtitle.start && currentTime <= subtitle.end) {
+                    return subtitle;
+                }
+            }
+
+            return { start: 0, end: 0, text: '' }; // Return an empty subtitle if none found
+        }
+
+        function parseTime(singleTimeString) {
+            const [time, milliseconds] = singleTimeString.split('.');
+
+            if (time.includes(':')) {
+                // Format: 01:54:38.948 or 00:32.708
+                const timeParts = time.split(':').map(parseFloat);
+                const hours = timeParts.length === 3 ? timeParts[0] : 0;
+                const minutes = timeParts.length >= 2 ? timeParts[timeParts.length - 2] : 0;
+                const seconds = timeParts[timeParts.length - 1];
+
+                return hours * 3600 + minutes * 60 + seconds + parseFloat('0.' + milliseconds);
+            }
+
+            return parseFloat('0.' + time);
+        }
+
+    </script>
+</body>
+
+</html>
