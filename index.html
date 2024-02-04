@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player with Subtitles</title>
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.6.4/plyr.css" />
+    <style>
+        #fileModal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .plyr__caption {
+            font-size: 150%;
+            background: var(--plyr-captions-background, rgba(0, 0, 0, .6));
+        }
+    </style>
+</head>
+
+<body>
+
+    <video id="videoPlayer" controls>
+        <source src="path_of_video.mp4" type="video/mp4">
+    </video>
+
+    <button onclick="openFileModal()">Add Subtitle File</button>
+    <div id="fileModal">
+        <input type="file" id="fileInput" />
+        <button onclick="closeFileModal()">Close</button>
+    </div>
+
+    <script src="https://cdn.plyr.io/3.6.4/plyr.js"></script>
+    <script>
+        const videoPlayer = new Plyr('#videoPlayer', {
+            captions: {
+                active: true,
+                update: true,// THAT line solved my problem
+            }
+        })
+
+        function openFileModal() {
+            fileModal.style.display = 'block';
+        }
+
+        function closeFileModal() {
+            fileModal.style.display = 'none';
+        }
+        // Function to load subtitles dynamically
+        function loadSubtitles(fileInput) {
+            const file = event.target.files[0];
+
+            if (file) {
+                const reader = new FileReader();
+
+                reader.onload = function (e) {
+                    const fileContent = e.target.result;
+                    const track = document.createElement('track');
+                    track.kind = 'subtitles';
+                    track.src = URL.createObjectURL(new Blob([fileContent], { type: 'text/vtt' }));
+                    track.srclang = 'en';
+                    track.label = 'English';
+                    track.default = true;
+                    document.getElementById('videoPlayer').appendChild(track);
+                };
+
+                closeFileModal();
+                console.log('Subtitles Loaded');
+                reader.readAsText(file);
+            }
+        }
+
+        // Add event listener to handle file input change
+        document.getElementById('videoPlayer').addEventListener('cuechange', function () {
+            // Adjust the subtitle display as needed
+            // console.log('Subtitle cue change');
+        });
+
+        const fileInput = document.getElementById('fileInput');
+        fileInput.addEventListener('change', loadSubtitles);
+    </script>
+</body>
+
+</html>
